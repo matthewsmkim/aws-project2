@@ -127,8 +127,7 @@ public class awsTest {
     private static void availableRegions() {
     }
 
-    private static void startInstance() {
-    }
+    
 
     
 
@@ -170,13 +169,18 @@ public class awsTest {
 
     		for(AvailabilityZone zone : zones_response.getAvailabilityZones()) {
     		    System.out.printf(
-    		        "[id] %s " + "[region] %s " + "[zone] %s",
+    		        "[id] %s " + "[region] %s " + "[zone] %s \n",
     		        zone.getZoneId(),
     		        zone.getRegionName(),
     		        zone.getZoneName()
     		        );
     		}
     
+    }
+    
+    private static void startInstance() {
+    	
+    	
     }
     
     
