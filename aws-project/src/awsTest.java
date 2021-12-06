@@ -2,19 +2,41 @@
 
 
 
+import java.util.LinkedList;
 import java.util.Scanner;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.regions.RegionUtils;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.CreateTagsResult;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesRequest;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeRegionsResult;
+import com.amazonaws.services.ec2.model.DryRunResult;
+import com.amazonaws.services.ec2.model.DryRunSupportedRequest;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.RebootInstancesRequest;
+import com.amazonaws.services.ec2.model.RebootInstancesResult;
+import com.amazonaws.services.ec2.model.Region;
 import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.StartInstancesRequest;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.CreateTagsResult;
 
 
 
@@ -72,7 +94,8 @@ public class awsTest {
             System.out.println("------------------------------------------------------------");
             System.out.print("Enter an integer: ");
             int number=menu.nextInt();
-//<생략>
+            
+
             switch (number) {
                 case 1:
                     listInstances();
@@ -102,35 +125,18 @@ public class awsTest {
                     break;
                 
                     	
-//<생략>
+
             }
 
 
         }
     }
 
-    private static void listImages(){
 
-    }
 
-    private static void rebootInstance(){
-
-    }
-
-    private static void createInstance(){
-
-    }
-
-    private static void stopInstance() {
-    }
-
-    private static void availableRegions() {
-    }
 
     
-
-    
-
+    // #1
     private static void listInstances() {
         System.out.println("Listing instance....");
         boolean done = false;
@@ -161,26 +167,147 @@ public class awsTest {
 
     }
     
+    // #2
     private static void availableZones() {
     	System.out.println("Available zones....");
     	
-    	DescribeAvailabilityZonesResult zones_response =
-    		    ec2.describeAvailabilityZones();
+    	DescribeAvailabilityZonesResult zones_response = ec2.describeAvailabilityZones();
 
     		for(AvailabilityZone zone : zones_response.getAvailabilityZones()) {
-    		    System.out.printf(
-    		        "[id] %s " + "[region] %s " + "[zone] %s \n",
-    		        zone.getZoneId(),
-    		        zone.getRegionName(),
-    		        zone.getZoneName()
-    		        );
+    		    System.out.printf("[id] %s " + "[region] %s " + "[zone] %s \n",zone.getZoneId(),zone.getRegionName(),zone.getZoneName());
     		}
     
     }
     
+    // #3
     private static void startInstance() {
+    	 
+    	Scanner in = new Scanner(System.in);
+    	String instance_id = in.next();
+    	
+    	System.out.println("Starting.... %s"+instance_id);
+    	
+    	DryRunSupportedRequest<StartInstancesRequest> dry_request = () -> {StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instance_id);
+                
+                return request.getDryRunRequest();
+                };
+                
+   
+    	
+                DryRunResult dry_response = ec2.dryRun(dry_request);
+
+                if(!dry_response.isSuccessful()) {
+                    System.out.printf("Failed to start instance %s", instance_id);
+
+                    throw dry_response.getDryRunResponse();
+                }
+
+                StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instance_id);
+
+                ec2.startInstances(request);
+
+                System.out.printf("instance starts successfully - %s", instance_id);
+
+    	       
+    }
+    
+    // #4
+    private static void availableRegions() {
+    	
+    	DescribeRegionsResult regions_response = ec2.describeRegions();
+
+        for(Region region : regions_response.getRegions()) {
+            System.out.printf("Found region %s " + "with endpoint %s",region.getRegionName(),region.getEndpoint());
+        }
     	
     	
+    }
+    
+    // #5
+    private static void stopInstance() {
+    	
+    	Scanner in = new Scanner(System.in);
+    	String instance_id = in.next();
+    	
+    	DryRunSupportedRequest<StopInstancesRequest> dry_request = () -> { StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instance_id);
+
+                return request.getDryRunRequest();
+            };
+
+            DryRunResult dry_response = ec2.dryRun(dry_request);
+
+            if(!dry_response.isSuccessful()) {
+                System.out.printf("Failed to stop instance %s", instance_id);
+                throw dry_response.getDryRunResponse();
+            }
+
+            StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instance_id);
+
+            ec2.stopInstances(request);
+            System.out.printf("Successfully stop instance %s", instance_id);
+    	
+    }
+
+    // #6
+    private static void createInstance(){
+    	
+    	Scanner in = new Scanner(System.in);
+    	Scanner out = new Scanner(System.in);
+        
+    	System.out.print("Enter ami id: ");
+    	String ami_id = in.next();
+    	System.out.print("Enter name: ");
+    	String name = out.next();
+    	
+    	RunInstancesRequest request = new RunInstancesRequest().withImageId(ami_id).withInstanceType(InstanceType.T1Micro).withMaxCount(1).withMinCount(1);
+    	RunInstancesResult run_response = ec2.runInstances(request);
+
+        String reservation_id = run_response.getReservation().getInstances().get(0).getInstanceId();
+
+        Tag tag = new Tag().withKey("Name").withValue(name);
+
+        CreateTagsRequest tag_request = new CreateTagsRequest().withResources(reservation_id).withTags(tag);
+        CreateTagsResult tag_response = ec2.createTags(tag_request);
+
+        System.out.printf("Successfully started EC2 instance %s based on AMI %s",reservation_id, ami_id);
+
+    }
+    
+    // #7
+    private static void rebootInstance(){
+    	
+    	Scanner in = new Scanner(System.in);
+    	String instance_id = in.next();
+
+
+
+        RebootInstancesRequest request = new RebootInstancesRequest().withInstanceIds(instance_id);
+
+        RebootInstancesResult response = ec2.rebootInstances(request);
+
+        System.out.printf(
+            "Reboot is successful - %s", instance_id);
+    }
+
+    
+
+    
+    
+    // #8
+    private static void listImages(){
+    	System.out.println("Listing images....");
+    	
+    	DescribeImagesRequest request = new DescribeImagesRequest();
+    	
+    	while(true) {
+    		DescribeImagesResult response= ec2.describeImages(request);
+    		for(Image image : response.getImages()) {
+    			System.out.printf(
+    	    			"[ImageID] %s, " + "[Name] %s, " + "[Owner] %s", image.getImageId(), image.getName(), image.getOwnerId());		
+    		}
+    		System.out.println();
+    	
+    	}
     }
     
     
